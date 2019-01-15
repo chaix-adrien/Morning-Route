@@ -19,7 +19,6 @@ class StopSearch extends Component {
         }
         this.getSavedSearch()
         this.timeout = null;
-        this.searchUrl = "https://www.tisseo.fr/proxy/api/tisseo/v1/places.json?displayBestPlace=1&lang=fr&simple=1&term="
     }
 
     getSavedSearch = async () => {
@@ -51,21 +50,6 @@ class StopSearch extends Component {
         }
     }
 
-    searchAutocomplete = () => {
-        fetch(this.searchUrl + this.state.search).then(rep => rep.json())
-        .then(rep => {
-            let cat = ""
-            rep = rep.splice(0, 8)
-            rep.forEach((e, id) => {
-                if (cat !== e.category) {
-                    cat = e.category
-                    rep.splice(id, 0, {category: cat, banner: true})
-                }
-            });
-            this.setState({autofill : rep, timeout: null})
-        })
-    }
-
     getCurrentPosition = (func) => {
         if (this.getGPSperm) {
           Geolocation.getCurrentPosition(
@@ -79,10 +63,10 @@ class StopSearch extends Component {
             {enableHighAccuracy: true, timeout: 5000}
           );
         } else
-          this.requestCameraPermission(func)
+          this.requestGPSPermission(func)
     }
 
-    requestCameraPermission = async (func) => {
+    requestGPSPermission = async (func) => {
         try {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -105,6 +89,17 @@ class StopSearch extends Component {
         } catch (err) {console.warn(err)}
     }
 
+    searchAutocomplete = (text) => {
+        this.setState({autofill: []})
+        this.props.city.searchAutocomplete(text,
+        autos => {
+            this.setState({autofill : autos, timeout: null})
+        },
+        e => {
+            console.log(e)
+        })
+    }
+
     render() {
         const {search} = this.state
         return (
@@ -119,8 +114,8 @@ class StopSearch extends Component {
                             this.setState({ search: text , searchItem: null})
                             if (this.state.timeout)
                                 clearTimeout(this.state.timeout)
-                            this.setState({timeout: setTimeout(() => this.searchAutocomplete(), 1000)})
-                    }}
+                            this.setState({timeout: setTimeout(() => this.searchAutocomplete(text), 1000)})
+                        }}
                         renderItem={item => 
                             {if (item.banner)
                                 return (<Text  key={item.id} style={styles.banner}>{item.category}</Text>)

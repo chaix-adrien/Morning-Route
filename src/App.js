@@ -11,6 +11,7 @@ import {StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, Keyboard, A
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
 import colors from './color.js'
+import toulouse from "./toulouse.js"
 import settingsTemplate from "./settings.js"
 import TimePicker from './TimePicker.js'
 import StopSearch from './StopSearch.js'
@@ -47,6 +48,7 @@ class App extends Component {
           settings: settingsTemplate,
           coord: null,
       }
+      this.cityManager = new toulouse()
       this.getGPSperm = false
       this.loadSettings()
   }
@@ -74,71 +76,8 @@ class App extends Component {
     return arrivalDate
   }
 
-
-  searchJourneyAccurate = (urlBase, lastDeparture, wantedArrival, estimatedArrival) => {
-    console.log("ESTIMED arrival : " + estimatedArrival.toString())
-    const diff = (estimatedArrival.valueOf() - wantedArrival.valueOf()) / (1000 * 60)
-    console.log("DIFFERENCE " + diff + "m")
-    lastDeparture.setMinutes(lastDeparture.getMinutes() - diff)
-    console.log("Reset depart to " + lastDeparture.toString())
-    const newUrl = urlBase + "&firstDepartureDatetime=" + lastDeparture.getFullYear() + "-" + (lastDeparture.getMonth() + 1) + "-" + lastDeparture.getDate() + " " + lastDeparture.getHours() + ":" + lastDeparture.getMinutes()
-    console.log(newUrl)
-    this.setState({colorLoading: colors.secondaryDark})
-    fetch(newUrl).then(r => r.json()).then(rep => {
-      if (!rep.routePlannerResult.journeys) {
-        this.setState({colorLoading: colors.cancel})
-        return
-      }
-      console.log(rep.routePlannerResult.journeys[0].journey.arrivalDateTime.replace(" ", "T"))
-      const estimatedArrival = this.tisseoDateToDate(rep.routePlannerResult.journeys[0].journey.arrivalDateTime)
-      console.log("New estimed: " + estimatedArrival.toString())
-      if (estimatedArrival.valueOf() > wantedArrival.valueOf())
-        this.searchJourneyAccurate(urlBase, lastDeparture, wantedArrival, estimatedArrival)
-      else {
-        this.setState({modalVisible: true, fromAlreadySearched: false, alreadySearched: true, colorLoading: null, journeys: rep.routePlannerResult.journeys})
-      }
-    }).catch((e) => {
-      console.log(e)
-      this.setState({colorLoading: colors.cancel})
-    })    
-  }
-
-  
-  tisseoDateToDate = (string) => {
-    const out = new Date(string.replace(" ", "T"))
-    out.setHours(out.getHours() -1)
-    return out
-}
-  searchJourney = () => {
-    const start = (this.state.startStop.fromGPS) ? this.state.startStop : encodeURI(this.state.startStop.key)
-    const end = encodeURI(this.state.endStop.key)
-
-    this.setState({colorLoading: colors.secondaryLighter})
-    this.getWeather()
-    let url;
-    console.log(start)
-    if (start.fromGPS)
-      url = "https://www.tisseo.fr/proxy/api/tisseo/v1/journeys.json?departurePlaceXY=" + start.longitude + "," + start.latitude + "&arrivalPlace=" + end + "&displayWording=1"      
-    else
-      url = "https://www.tisseo.fr/proxy/api/tisseo/v1/journeys.json?departurePlace=" + start + "&arrivalPlace=" + end + "&displayWording=1"
-    console.log(url)
-    fetch(url).then(rep => rep.json())
-    .then(rep => {
-      if (!rep.routePlannerResult.journeys) {
-        this.setState({colorLoading: colors.cancel})
-        return
-      }
-      const journey = rep.routePlannerResult.journeys[0].journey
-      this.searchJourneyAccurate(url,this.tisseoDateToDate(journey.departureDateTime) , this.getWantedArrivalDate(), this.tisseoDateToDate(journey.arrivalDateTime))
-    })
-    .catch((e) => {
-      console.log(e)
-      this.setState({colorLoading: colors.cancel})
-    })
-  }
-
   getWeather = () => {
-    const weatherUrl = "https://www.prevision-meteo.ch/services/json/Toulouse"
+    const weatherUrl = "https://www.prevision-meteo.ch/services/json/" + this.cityManager.getCityName()
     fetch(weatherUrl).then(r => r.json())
     .then(rep => {
       let data;
@@ -173,6 +112,7 @@ class App extends Component {
           <ModalResult
           alreadySearched={fromAlreadySearched}
           journeys={journeys}
+          city={this.cityManager}
           prepareTime={timePrepare}
           weather={weather}
           isVisible={modalVisible}
@@ -190,6 +130,7 @@ class App extends Component {
           <View style={{height: 140, margin: 10, marginTop: 45}}>
             <StopSearch style={{bottom: 40}}
             allowGPS={true}
+            city={this.cityManager}
             onStartChanging={() => this.setState({startSetting: true, alreadySearched: false})}
             onEndChanging={() => this.setState({startSetting: false})}
             onChange={value => {console.log("OnChange: ", value); this.setState({startStop: value})}} keySave="StartStop" placeholder="Départ"/>
@@ -198,6 +139,7 @@ class App extends Component {
             <Icon name="angle-double-down" style={{alignSelf: "center", margin: 5}} size={40} color={colors.secondaryDark} />
             <StopSearch style={{paddingTop: 50}}
             allowGPS={false}
+            city={this.cityManager}
             onStartChanging={() => this.setState({endSetting: true, alreadySearched: false})}
             onEndChanging={() => this.setState({endSetting: false})}
             onChange={value => this.setState({endStop: value})} keySave="EndStop" placeholder="Arrivée"/></>}
@@ -208,7 +150,7 @@ class App extends Component {
               <Icon name="coffee" size={30} color={colors.secondaryLight} />
               {(!prepSetting) && <Text style={styles.text}>Préparation</Text>}
               <TimePicker style={{alignSelf: "flex-end", marginRight: 20}}
-              minH={0} maxH={5} minM={0} maxM={60} forceHour={false} setting="switch" keySave="timePrepare"  jumpMin={5}
+              minH={0} maxH={5} minM={0} maxM={60} forceHour={false} setting="switch" keySave="timePrepare" jumpMin={5}
               onSetting={(state) => this.setState({prepSetting: state})}
               onChange={(h, m) => this.setState({timePrepare: {h: h, m: m}, alreadySearched: false})}
               />
@@ -237,9 +179,14 @@ class App extends Component {
                 Keyboard.dismiss()
                 if (alreadySearched)
                   this.setState({modalVisible: true, fromAlreadySearched: true})
-                else
-                  this.searchJourney()
-              }} >
+                else {
+                  this.setState({colorLoading: colors.mainDark}, () => {
+                    this.getWeather()
+                    this.cityManager.searchJourney(startStop, endStop, this.getWantedArrivalDate(),
+                      (journeys) => this.setState({modalVisible: true, fromAlreadySearched: false, alreadySearched: true, colorLoading: null, journeys: journeys}),
+                      (e) => {console.log(e); this.setState({colorLoading: colors.cancel})})
+                })
+              }}} >
               <Text style={{color: "white", fontSize: 20, alignSelf: "center", fontStyle: "italic"}}>{(alreadySearched) ? "AFFICHER" : "WAKE ME UP !"}</Text>
             </TouchableOpacity>
             }          

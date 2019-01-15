@@ -24,10 +24,9 @@ class ModalResult extends Component {
     }
 
     componentWillMount() {
-        const {weather, journeys, iGotLucky} = this.props
-        const {journeySelected} = this.state
+        const {journeys, iGotLucky} = this.props
         if (journeys.length === 1  || iGotLucky)
-        this.selectJourney(0)
+            this.selectJourney(0)
 
     }
 
@@ -115,56 +114,25 @@ class ModalResult extends Component {
         )
     }
 
-    displayOneJourney = (j) => {
-        let out = [];
-        let street = 0;
-        j.forEach((step, id) => {
-            if (id > 0 && street <= 1)
-                out.push(<Icon key={id + "icon"} style={{margin: 5}} name="angle-double-down" size={20} color={colors.mainDark}/>)
-            if (step.street && !street) {
-                const time = step.street.departureTime.substring(0, 5)
-                out.push(<Text key={id + "step"} style={[styles.stopText, {fontStyle: "italic"}]}>{time}</Text>)
-                out.push(<Text key={id + "walk"} style={styles.stopText}>Marchez</Text>)
-                street++
-            } else if (step.street && street) {
-                street++
-                if (id === j.length - 1) {
-                    const time = step.street.arrivalTime.substring(0, 5)
-                    out.push(<Text key={id + "step"} style={[styles.stopText, {fontStyle: "italic"}]}>{time}</Text>)
-                    out.push(<Text key={id + "walk"} style={styles.stopText}>Arrivée</Text>)
-                }
-            }
-                
-            if (step.stop) {
-                street = 0
-                out.push(<Text key={id + "step"} style={[styles.stopText, {fontStyle: "italic"}]}>{step.stop.firstTime}</Text>)
-                out.push(<Text key={id + "step2"} style={styles.stopText}>{step.stop.text.text}</Text>)
-            } else if (step.service) {
-                street = 0
-                const line = step.service.destinationStop.line
-                out.push(<Text key={id + "text"} style={styles.stopText}>{step.service.text.text}</Text>)
-                out.push(<Text key={id + "line"} style={[styles.lineIcon, {color: line.fgXmlColor, backgroundColor: line.bgXmlColor}]}>{line.shortName}</Text>)
-            }
-        })
-        return out
-    }
-
-    tisseoDateToDate = (string) => {
-        const out = new Date(string.replace(" ", "T"))
-        out.setHours(out.getHours() -1)
-        return out
-    }
-
     displayJourneys = () => {
         const {journeys} = this.props
-        const out = journeys.filter(j => j.journey).map((journey, id) => {
+        const out = journeys.map((journey, id) => {
+            const display = this.props.city.displayOneJourney(journey)
             return (
-                <View key={id} style={{marginBottom: 50, marginTop: 10}}>
-                <ScrollView key={id} contentContainerStyle={styles.slide}>
-                    {this.displayOneJourney(journey.journey.chunks)}
-                </ScrollView>
-                </View>
-                
+                <View key={id} style={{marginBottom: 0, marginTop: 10}}>
+                    <View style={[styles.row, {justifyContent: "space-around"}]}>
+                        <Text style={styles.previewTimesText}>{this.dateToTimeString(display.start)}</Text>
+                        <Icon name="angle-double-right" size={30} color={colors.mainDark} />
+                        <Text style={styles.previewTimesText}>{this.dateToTimeString(display.end)}</Text>
+                    </View>
+                    <View style={{marginBottom: 120, marginTop: 10}}>
+                        <ScrollView key={id} contentContainerStyle={styles.slide}>
+                            {display.content}
+                        </ScrollView>
+                    </View>
+                    
+                    
+                </View>  
             )
         })
         return out
@@ -173,15 +141,11 @@ class ModalResult extends Component {
     selectJourney = (id) => {
         console.log("SELECT JOURNEY " + id)
         const {prepareTime} = this.props
-        const journey = this.props.journeys[id].journey
-        const times = {}        
-        times.arrival = this.tisseoDateToDate(journey.arrivalDateTime)
-        times.departure = this.tisseoDateToDate(journey.departureDateTime)
-        //times.awakening = 
+        const journey = this.props.journeys[id]
+        const times = this.props.city.getTimesOfJourney(journey)       
         times.awakening = new Date(times.departure);
         times.awakening.setHours(times.awakening.getHours() - prepareTime.h)
         times.awakening.setMinutes(times.awakening.getMinutes() - prepareTime.m)
-        times.duration = new Date('December 17, 2019 ' + journey.duration)
         this.setState({journeySelected: journey, times: times})
     }
 
@@ -218,7 +182,7 @@ class ModalResult extends Component {
                     >
                         {this.displayJourneys()}                                
                     </Swiper>
-                       <Icons 
+                    <Icons 
                        onPress={() => this.selectJourney(this.tmpIndex)}
                        style={{position: "absolute", right: 30, bottom: 30}} name="check-circle" size={40} color={colors.mainDark}/>
                     </>
@@ -236,17 +200,6 @@ const styles = StyleSheet.create({
       justifyContent: 'center',
       alignItems:'center',
     },
-    lineIcon: {
-        fontSize: 20,
-        padding: 10,
-        textAlign: "center",
-        borderRadius: 10,
-        margin: 5,
-    },
-    stopText: {
-        textAlign: "center",
-        fontSize: 15,
-    },
     slide: {
         justifyContent: "center",
         alignItems: "center",
@@ -260,6 +213,15 @@ const styles = StyleSheet.create({
     },
     iconText: {
         width: 45,
+    },
+    previewTimesText : {
+        fontSize: 20,
+        color: colors.mainDark,
+        fontStyle: "italic",
+        alignSelf: "center",
+        borderRadius: 10,
+        padding: 5,
+        backgroundColor: colors.mainLighter,
     },
     row: {
         flexDirection: "row",
@@ -280,7 +242,7 @@ const styles = StyleSheet.create({
         color: colors.secondaryDark,
         fontSize: 25,
         marginLeft: 5,
-        width: 70,
+        width: 80,
     },
     weatherTime: {
         color: colors.mainDark,
