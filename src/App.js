@@ -10,11 +10,12 @@ import React, {Component} from 'react';
 import {StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, Keyboard, AsyncStorage} from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
-import colors from './src/color.js'
-import TimePicker from './src/TimePicker.js'
-import StopSearch from './src/StopSearch.js'
-import ModalResult from './src/ModalResult.js';
-import ModalSetting from './src/ModalSetting.js';
+import colors from './color.js'
+import settingsTemplate from "./settings.js"
+import TimePicker from './TimePicker.js'
+import StopSearch from './StopSearch.js'
+import ModalResult from './ModalResult.js';
+import ModalSetting from './ModalSetting.js';
 
 Date.prototype.addDays = function(days) {
   var date = new Date(this.valueOf());
@@ -34,6 +35,8 @@ class App extends Component {
           timeAdvance: {h: 0, m: 0},
           startStop: null,
           endStop: null,
+          startSetting: false,
+          endSetting: false,
           modalVisible: false,
           modalSetting: false,
           alreadySearched: false,
@@ -41,7 +44,7 @@ class App extends Component {
           journeys: [],
           weather: [],
           fromAlreadySearched: false,
-          settings: null,
+          settings: settingsTemplate,
           coord: null,
       }
       this.getGPSperm = false
@@ -155,24 +158,26 @@ class App extends Component {
 
   render() {
     const d = new Date();
+    const {fromAlreadySearched, journeys, timePrepare, weather, modalVisible, settings, modalSetting, startSetting,
+      endSetting, prepSetting, advanceSetting, colorLoading, alreadySearched, startStop, endStop} = this.state
     return (
         <View style={{position: "absolute", top: 0, bottom: 0, left: 0, right: 0, paddingTop: 30}}>
           <TouchableOpacity onPress={() => this.setState({modalSetting: true})} style={{position: "absolute", top: 5, right: 5, opacity: 0.5}}>
             <Icon name="cog"   size={20} color="grey" />
           </TouchableOpacity>
-         {this.state.modalSetting && 
+         {modalSetting && 
               <ModalSetting
-                isVisible={this.state.modalSetting}
+                isVisible={modalSetting}
                 onQuit={() => this.setState({modalSetting: false}, () => this.loadSettings())}/>}
-         {this.state.modalVisible && 
+         {modalVisible && 
           <ModalResult
-          alreadySearched={this.state.fromAlreadySearched}
-          journeys={this.state.journeys}
-          prepareTime={this.state.timePrepare}
-          weather={this.state.weather}
-          isVisible={this.state.modalVisible}
-          iGotLucky={this.state.settings.iGotLucky}
-          createDepartureAlarm={this.state.settings.createDepartureAlarm}
+          alreadySearched={fromAlreadySearched}
+          journeys={journeys}
+          prepareTime={timePrepare}
+          weather={weather}
+          isVisible={modalVisible}
+          iGotLucky={settings.iGotLucky}
+          createDepartureAlarm={settings.createDepartureAlarm}
           onQuit={() => this.setState({modalVisible: false})}/>}
           <View style={styles.inputRow}>
             <Icon name="flag-checkered" size={30} color={colors.secondaryLight} />
@@ -188,7 +193,7 @@ class App extends Component {
             onStartChanging={() => this.setState({startSetting: true, alreadySearched: false})}
             onEndChanging={() => this.setState({startSetting: false})}
             onChange={value => {console.log("OnChange: ", value); this.setState({startStop: value})}} keySave="StartStop" placeholder="Départ"/>
-            {!this.state.startSetting && <>
+            {!startSetting && <>
 
             <Icon name="angle-double-down" style={{alignSelf: "center", margin: 5}} size={40} color={colors.secondaryDark} />
             <StopSearch style={{paddingTop: 50}}
@@ -197,11 +202,11 @@ class App extends Component {
             onEndChanging={() => this.setState({endSetting: false})}
             onChange={value => this.setState({endStop: value})} keySave="EndStop" placeholder="Arrivée"/></>}
           </View>
-          {(!this.state.startSetting && !this.state.endSetting) && 
+          {(!startSetting && !endSetting) && 
           <View style={{}}>
             <View style={[styles.inputRow, {bottom: 50}]}>
               <Icon name="coffee" size={30} color={colors.secondaryLight} />
-              {(!this.state.prepSetting) && <Text style={styles.text}>Préparation</Text>}
+              {(!prepSetting) && <Text style={styles.text}>Préparation</Text>}
               <TimePicker style={{alignSelf: "flex-end", marginRight: 20}}
               minH={0} maxH={5} minM={0} maxM={60} forceHour={false} setting="switch" keySave="timePrepare"  jumpMin={5}
               onSetting={(state) => this.setState({prepSetting: state})}
@@ -210,7 +215,7 @@ class App extends Component {
             </View>
             <View style={[styles.inputRow, {bottom: 50}]}>
               <Icon name="fast-forward" size={30} color={colors.secondaryLight} />
-              {(!this.state.advanceSetting) && <Text style={styles.text}>Avance</Text>}
+              {(!advanceSetting) && <Text style={styles.text}>Avance</Text>}
               <TimePicker style={{alignSelf: "flex-end", marginRight: 20}}
               minH={0} maxH={5} minM={0} maxM={60} forceHour={false} setting="switch" keySave="timeAdvance" jumpMin={1}
               onSetting={(state) => this.setState({advanceSetting: state})}
@@ -218,23 +223,24 @@ class App extends Component {
               />
             </View>
           </View>}
-          {(this.state.colorLoading !== null  && this.state.colorLoading !== colors.cancel) && 
-            <ActivityIndicator style={styles.loading} size="large" color={this.state.colorLoading} />
+          {(colorLoading !== null  && colorLoading !== colors.cancel) && 
+            <ActivityIndicator style={styles.loading} size="large" color={colorLoading} />
           }
-          {(this.state.colorLoading === colors.cancel) &&
+          {(colorLoading === colors.cancel) &&
             <Icon style={{alignSelf: "center"}} name="exclamation-triangle" size={60} color={this.state.colorLoading} />
           }
-            {(!this.state.startSetting && !this.state.endSetting && (!this.state.colorLoading || this.state.colorLoading == colors.cancel)) && 
+            {(!startSetting && !endSetting && (!colorLoading || colorLoading == colors.cancel)
+            && (startStop && endStop)) && 
             <TouchableOpacity
               style={{position: "absolute", elevation: 20, bottom: 0, left: 0, right: 0, backgroundColor: colors.mainDark, padding: 5, height: 60, justifyContent: "center"}}
               onPress={() => {
                 Keyboard.dismiss()
-                if (this.state.alreadySearched)
+                if (alreadySearched)
                   this.setState({modalVisible: true, fromAlreadySearched: true})
                 else
                   this.searchJourney()
               }} >
-              <Text style={{color: "white", fontSize: 20, alignSelf: "center", fontStyle: "italic"}}>{(this.state.alreadySearched) ? "AFFICHER" : "WAKE ME UP !"}</Text>
+              <Text style={{color: "white", fontSize: 20, alignSelf: "center", fontStyle: "italic"}}>{(alreadySearched) ? "AFFICHER" : "WAKE ME UP !"}</Text>
             </TouchableOpacity>
             }          
         </View>

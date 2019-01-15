@@ -2,16 +2,13 @@ import React, {Component} from 'react';
 import {StyleSheet, Text, View,TouchableOpacity, CheckBox, AsyncStorage, ScrollView} from 'react-native';
 import Icons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Modal from "react-native-modal";
-
 import colors from './color.js'
+import settingsTemplate from "./settings.js"
 
 class ModalSetting extends Component {
     constructor(props) {
         super(props)
-        this.state = {
-            iGotLucky: false,
-            createDepartureAlarm: false,
-        }
+        this.state = settingsTemplate
         this.loadSettings()
     }
 
